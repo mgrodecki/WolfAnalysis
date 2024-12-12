@@ -36,10 +36,18 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ''
 
-mydata=read_excel("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx")
+first_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "animal id")
+second_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "Ethogram")
+third_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "Ethogram Revised")
+fourth_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "activity budget")
+fifth_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "all occurance")
 
-#take a look at the data
-glimpse(mydata)
+first_sheet
+second_sheet
+third_sheet
+fourth_sheet
+fifth_sheet
+
 ```
 
 ## Including Plots
