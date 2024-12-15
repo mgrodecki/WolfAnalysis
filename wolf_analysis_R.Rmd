@@ -3,59 +3,240 @@ title: "wolf_analysis"
 output: pdf_document
 ---
 
+##Load libraries
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(RSQLite)
-library(dbplyr)
+library(readxl)
 library(dplyr)
-library(purrr)
 library(ggplot2)
-library(xts)
-library(ggfortify)
-library(ggthemes)
-library(maps)
-library(mapdata)
-library(leaflet)
-library(remotes)
-library(qst)
-library(ymd)
-library(tidyverse)
-library(emmeans)
-library(ggplot2)
-library("readxl")
+
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
+##Load datasets
 ```{r cars}
 
-''
+animal_id_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "animal id")
+ethogram_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "Ethogram")
+ethogram_revised_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "Ethogram Revised")
+activity_budget_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "activity budget")
+all_occurance_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "all occurance")
 
-first_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "animal id")
-second_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "Ethogram")
-third_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "Ethogram Revised")
-fourth_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "activity budget")
-fifth_sheet = read_xlsx("/Users/MichaelGrodecki/Downloads/CS Stuff/LISA/Resources/wolf_analysis/Wolf_data-LISA.xlsx", sheet = "all occurance")
-
-first_sheet
-second_sheet
-third_sheet
-fourth_sheet
-fifth_sheet
+animal_id_sheet
+ethogram_sheet
+ethogram_revised_sheet
+activity_budget_sheet
+all_occurance_sheet
 
 ```
 
-## Including Plots
+## Data Visualization of bold and timid behaviors - bar chart, pie chart, scatterplot 
+```{r}
 
-You can also embed plots, for example:
+# List of bold behaviors
+bold_behaviors <- c("Bold approach- fenceline", 
+                    "Bold approach- conspecific", 
+                    "Bold approach- guest")
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+#List of timid behaviors
+timid_behaviors <- c("Timid approach- fenceline",
+                    "Fearful flight/startle",
+                    "Flight or startle")
+
+# Count observations of bold behaviors
+bold_count <- activity_budget_sheet %>%
+  filter(Behavior %in% bold_behaviors) %>%
+  summarise(count = n()) %>%
+  pull(count)
+
+# Count observations of timid behaviors
+timid_count <- activity_budget_sheet %>%
+  filter(Behavior %in% timid_behaviors) %>%
+  summarise(count = n()) %>%
+  pull(count)
+
+# Display the counts
+cat("Bold Behavior Observations: ", bold_count, "\n")
+####Output: Bold Behavior Observations:  59 
+
+cat("Timid Behavior Observations: ", timid_count, "\n")
+####Output: Timid Behavior Observations:  13 
+
+# Filter rows with bold behaviors
+bold_data <- activity_budget_sheet %>%
+  filter(Behavior %in% bold_behaviors)
+
+# Filter rows with timid behaviors
+timid_data <- activity_budget_sheet %>%
+  filter(Behavior %in% timid_behaviors)
+
+# Create a summary of counts for bold behaviors by color
+bold_summary <- bold_data %>%
+  group_by(color, Behavior) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Create a summary of counts for timid behaviors by color
+timid_summary <- timid_data %>%
+  group_by(color, Behavior) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Visualize the Bold relationship with coat color - bar chart
+ggplot(bold_summary, aes(x = color, y = count, fill = Behavior)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Relationship Between Coat Color and Bold Behaviors",
+       x = "Color",
+       y = "Coat Count of Bold Behaviors",
+       fill = "Bold Behavior") +
+  theme_minimal()
+
+# Visualize the Timid relationship with coat color - bar chart
+ggplot(timid_summary, aes(x = color, y = count, fill = Behavior)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Relationship Between Coat Color and Timid Behaviors",
+       x = "Coat Color",
+       y = "Count of Timid Behaviors",
+       fill = "Timid Behavior") +
+  theme_minimal()
+
+# Summarize total counts of bold behaviors by Color - pie chart
+bold_summary_pie <- bold_data %>%
+  group_by(color) %>%
+  summarise(total_count = n(), .groups = "drop")
+
+# Summarize total counts of timid behaviors by Color - pie chart
+timid_summary_pie <- timid_data %>%
+  group_by(color) %>%
+  summarise(total_count = n(), .groups = "drop")
+
+# Visualize the relationship between coat color and boldness - Pie chart
+ggplot(bold_summary_pie, aes(x = "", y = total_count, fill = color)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Proportion of Bold Behaviors by Coat Color",
+       fill = "Color") +
+  theme_void()
+
+# Visualize the relationship between coat color and timidness - Pie chart
+ggplot(timid_summary_pie, aes(x = "", y = total_count, fill = color)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Proportion of Timid Behaviors by Coat Color",
+       fill = "Color") +
+  theme_void()
+
+# Visualize the relationship between coat color and boldness - scatterplot 
+# Assign jittered points for better distribution visualization
+ggplot(bold_data, aes(x = color, y = Behavior, color = color)) +
+  geom_jitter(width = 0.2, height = 0.2, size = 3) +
+  labs(title = "Scatter Plot of Bold Behaviors by Coat Color",
+       x = "Coat Color",
+       y = "Bold Behavior") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Visualize the relationship between coat color and timidness - scatterplot 
+# Assign jittered points for better distribution visualization
+ggplot(timid_data, aes(x = color, y = Behavior, color = color)) +
+  geom_jitter(width = 0.2, height = 0.2, size = 3) +
+  labs(title = "Scatter Plot of Timid Behaviors by Coat Color",
+       x = "Coat Color",
+       y = "Timid Behavior") +
+  theme_minimal() +
+  theme(legend.position = "none")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+##Data visualization of bold and timid behaviors by coat color and gender
+```{r}
+# Add a classification column for bold and timid behaviors
+activity_budget_sheet <- activity_budget_sheet %>%
+  mutate(BehaviorType = case_when(
+    Behavior %in% bold_behaviors ~ "Bold",
+    Behavior %in% timid_behaviors ~ "Timid",
+    TRUE ~ NA_character_
+  ))
+
+# Filter data for only bold and timid behaviors
+filtered_data <- activity_budget_sheet %>%
+  filter(!is.na(BehaviorType))
+
+# Visualization 1: Stacked Bar Chart (Coat Color vs Bold/Timid Behaviors)
+ggplot(filtered_data, aes(x = color, fill = BehaviorType)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~ sex) +
+  labs(title = "Bold and Timid Behaviors by Coat Color and Sex",
+       x = "Coat Color",
+       y = "Count of Behaviors",
+       fill = "Behavior Type") +
+  theme_minimal()
+
+# Visualization 2: Grouped Bar Chart (Coat Color vs Behavior Type)
+ggplot(filtered_data, aes(x = color, fill = BehaviorType)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(~ sex) +
+  labs(title = "Distribution of Bold and Timid Behaviors by Coat Color and Sex",
+       x = "Coat Color",
+       y = "Count of Behaviors",
+       fill = "Behavior Type") +
+  theme_minimal()
+```
+##Visualizations of bold and timid behavior by coat color, sex, and age
+```{r}
+# Ensure Age is numeric for proper ordering in scatter plot
+filtered_data <- filtered_data %>%
+  mutate(age = as.numeric(age))
+
+# Visualization 1: Faceted Scatter Plot (Age vs Behavior Type, by Sex and Coat Color)
+ggplot(filtered_data, aes(x = age, y = BehaviorType, color = color)) +
+  geom_jitter(width = 0.3, height = 0.2, size = 3) +
+  facet_wrap(~ sex) + scale_x_continuous(breaks = seq(0, 16, 1)) + # Ensure all ages from 0 to 16 are shown
+  labs(title = "Age and Behavior Type (Bold vs Timid) by Sex and Coat Color",
+       x = "Age",
+       y = "Behavior Type",
+       color = "Coat Color") +
+  theme_minimal()
+
+```
+##Count how many behaviors 'Guest in enclosure', 'Guest outside enclosure', 'Handler in enclosure' and 'Handler outside enclosure' where the response value is 'yes' are bold or timid behaviors
+```{r}
+# Define columns of interest
+columns_of_interest <- c("Guest in enclosure", 
+                         "Guest outside enclosure", 
+                         "Handler in enclosure", 
+                         "Handler outside enclosure")
+
+# Filter rows where any of the columns of interest have a "yes" value
+relevant_data_yes <- activity_budget_sheet %>%
+  filter(if_any(all_of(columns_of_interest), ~ . == "yes")) %>%
+  filter(!is.na(BehaviorType)) # Keep only rows classified as Bold or Timid
+
+# Filter rows where any of the columns of interest have a "no" value
+relevant_data_no <- activity_budget_sheet %>%
+  filter(if_any(all_of(columns_of_interest), ~ . == "no")) %>%
+  filter(!is.na(BehaviorType)) # Keep only rows classified as Bold or Timid
+
+# Count rows with "yes" for each column, grouped by BehaviorType
+counts_yes <- relevant_data_yes %>%
+  pivot_longer(cols = all_of(columns_of_interest), 
+               names_to = "Column", 
+               values_to = "Value") %>%
+  filter(Value == "yes") %>%
+  group_by(BehaviorType, Column) %>%
+  summarise(Count = n(), .groups = "drop")
+
+# Count rows with "no" for each column, grouped by BehaviorType
+counts_no <- relevant_data_no %>%
+  pivot_longer(cols = all_of(columns_of_interest), 
+               names_to = "Column", 
+               values_to = "Value") %>%
+  filter(Value == "no") %>%
+  group_by(BehaviorType, Column) %>%
+  summarise(Count = n(), .groups = "drop")
+
+
+# View the result
+print(counts_yes)
+####28 observations where either the guest or handler were outside the enclosure and the wolf exhibited 'bold' behavior
+####3 observations where either the guest or handler were outside the enclosure and the wolf ehibited 'timid' behavior
+print(counts_no)
+####majority of observations had no humans present 
+```
