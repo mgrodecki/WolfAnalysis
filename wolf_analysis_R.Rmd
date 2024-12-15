@@ -236,7 +236,7 @@ counts_no <- relevant_data_no %>%
 # View the result
 print(counts_yes)
 ####28 observations where either the guest or handler were outside the enclosure and the wolf exhibited 'bold' behavior
-####3 observations where either the guest or handler were outside the enclosure and the wolf ehibited 'timid' behavior
+####3 observations where either the guest or handler were outside the enclosure and the wolf exhibited 'timid' behavior
 print(counts_no)
 ####majority of observations had no humans present 
 ```
