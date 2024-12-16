@@ -1,0 +1,211 @@
+---
+title: "Wolf Test Data"
+author: "Luke Petet"
+date: "2024-04-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#if you dont have any of these, use command install.packages("e1071")
+
+library(e1071)
+library(caTools)
+
+library(pixiedust)
+library(kableExtra)
+library(MASS)
+
+library(tree)
+library(ranger)
+
+library(dplyr)
+library(caret)
+
+library(readxl)
+```
+
+##Load datasets
+```{r}
+
+#Import data from excel, change the file path to your personal computer
+animal_id_sheet = read_xlsx("~/Downloads/Wolf_data.xlsx", sheet = "animal id")
+ethogram_sheet = read_xlsx("~/Downloads/Wolf_data.xlsx", sheet = "Ethogram")
+ethogram_revised_sheet = read_xlsx("~/Downloads/Wolf_data.xlsx", sheet = "Ethogram Revised")
+activity_budget_sheet = read_xlsx("~/Downloads/Wolf_data.xlsx", sheet = "activity budget")
+all_occurance_sheet = read_xlsx("~/Downloads/Wolf_data.xlsx", sheet = "all occurance")
+
+#Preview the imported excel sheets
+animal_id_sheet
+ethogram_sheet
+ethogram_revised_sheet
+activity_budget_sheet
+all_occurance_sheet
+
+```
+
+
+```{r}
+
+# List of bold behaviors
+bold_behaviors <- c("Bold approach- fenceline", 
+                    "Bold approach- conspecific", 
+                    "Bold approach- guest", 
+                    "Relaxed reception of conspecific approach",
+                    "Lack of flight when provoked")
+
+#List of timid behaviors
+timid_behaviors <- c("Timid approach- fenceline",
+                    "Fearful flight/startle",
+                    "Flight or startle",
+                    "Fearful flight/startle",
+                    "Provoked flight/flinch",
+                    "Unprovoked flight")
+
+# Count observations of bold behaviors
+bold_count <- activity_budget_sheet %>%
+  filter(Behavior %in% bold_behaviors) %>%
+  summarise(count = n()) %>%
+  pull(count)
+
+# Count observations of timid behaviors
+timid_count <- activity_budget_sheet %>%
+  filter(Behavior %in% timid_behaviors) %>%
+  summarise(count = n()) %>%
+  pull(count)
+
+# Display the counts
+cat("Bold Behavior Observations: ", bold_count, "\n")
+####Output: Bold Behavior Observations:  59 
+
+cat("Timid Behavior Observations: ", timid_count, "\n")
+####Output: Timid Behavior Observations:  13 
+
+# Filter rows with bold behaviors
+bold_data <- activity_budget_sheet %>%
+  filter(Behavior %in% bold_behaviors)
+
+# Filter rows with timid behaviors
+timid_data <- activity_budget_sheet %>%
+  filter(Behavior %in% timid_behaviors)
+```
+
+
+```{r}
+# Add a classification column for bold and timid behaviors
+activity_budget_sheet <- activity_budget_sheet %>%
+  mutate(BehaviorType = case_when(
+    Behavior %in% bold_behaviors ~ "Bold",
+    Behavior %in% timid_behaviors ~ "Timid",
+    TRUE ~ NA_character_
+  ))
+
+# Filter data for only bold and timid behaviors
+filtered_data <- activity_budget_sheet %>%
+  filter(!is.na(BehaviorType))
+
+
+#Create a new column that identifies bold behavior as a 1, timid as 0
+filtered_data$bold_numeric <- ifelse(filtered_data$BehaviorType == "Bold", 1, 0)
+
+#Removes spaces from column names, need this for all modeling in R
+filtered_data <- filtered_data %>%
+          rename_all(~ make.names(.))
+
+#Creates a single column for guest present as a 1, guest not present as a 0
+filtered_data$guest <- ifelse(filtered_data$Guest.outside.enclosure == "yes" | filtered_data$Guest.in.enclosure == "yes", 1, 0)
+
+#Creates a single column for handler present as a 1, guest not present as a 0
+filtered_data$handler <- ifelse(filtered_data$Handler.outside.enclosure == "yes" | filtered_data$Handler.in.enclosure == "yes", 1, 0)
+
+#Uses the single guest column and single handler column to be a 1 if a human is present at all
+filtered_data$humans <- ifelse(filtered_data$handler == 1 | filtered_data$guest == 1, 1, 0)
+```
+
+
+```{r}
+#Library for mixed effects models
+library(lme4)
+
+# Remember our data looks like this for the model
+# - bold_numeric (0 or 1)
+# - color (categorical)
+# - sex (categorical)
+# - humans (0 or 1)
+# - individual_id (here we use animal as the same thing because they do not have IDs) (this is a random effect for animal ID)
+# - pen_location (not present currently, would have same implementation as "+ (1 | pen_location)") (random effect for pen location)
+
+# Fit a mixed-effects logistic regression model
+#model <- glmer(bold_numeric ~ color + sex + guest + handler + (1 | individual_id) + (1 | pen_location), 
+#               data = filtered_data, 
+#               family = binomial)
+
+model <- glmer(bold_numeric ~ color + sex + humans + (1 | animal), 
+               data = filtered_data, 
+               family = binomial)
+
+# Summarize the model
+summary(model)
+```
+
+
+```{r}
+#This runs a chi-squared like the paper you linked, first on only male wolves
+
+#Creates a categorical result for non bold or timid behaviors, like hyena paper
+activity_budget_sheet$BehaviorType[is.na(activity_budget_sheet$BehaviorType)] <- "Other"
+
+#Selects only wolves that are male
+activity_budget_sheet_male <- activity_budget_sheet[activity_budget_sheet$sex == "m", ]
+
+# Create the contingency table between color and behavior type for male wolves
+m_contingency_table <- table(activity_budget_sheet_male$color, activity_budget_sheet_male$BehaviorType)
+
+# View the contingency table
+print(m_contingency_table)
+
+# Run the Chi-squared test
+m_chi_result <- chisq.test(m_contingency_table)
+
+# View the result
+print(m_chi_result)
+```
+
+
+```{r}
+#Running the same chi-squared test for female wolves
+
+#Selects only wolves that are male
+activity_budget_sheet_female <- activity_budget_sheet[activity_budget_sheet$sex == "f", ]
+
+# Create the contingency table between color and behavior type for female wolves
+f_contingency_table <- table(activity_budget_sheet_female$color, activity_budget_sheet_female$BehaviorType)
+
+# View the contingency table
+print(f_contingency_table)
+
+# Run the Chi-squared test
+f_chi_result <- chisq.test(f_contingency_table)
+
+# View the result
+print(f_chi_result)
+```
+
+```{r}
+#This runs a chi-squared like the paper you linked, but on ALL wolves regardless of gender
+
+# Create the contingency table between color and behavior for wolves
+contingency_table <- table(activity_budget_sheet$color, activity_budget_sheet$BehaviorType)
+
+# View the contingency table
+print(contingency_table)
+
+# Run the Chi-squared test
+chi_result <- chisq.test(contingency_table)
+
+# View the result
+print(chi_result)
+```
+
+
